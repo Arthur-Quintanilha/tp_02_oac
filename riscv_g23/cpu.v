@@ -4,11 +4,9 @@ module cpu(
     input clk,
     input rst
 );
-    // PC
     reg [31:0] pc;
     wire [31:0] instr;
 
-    // Decode fields
     wire [6:0]  opcode = instr[6:0];
     wire [4:0]  rd     = instr[11:7];
     wire [2:0]  funct3 = instr[14:12];
@@ -16,12 +14,10 @@ module cpu(
     wire [4:0]  rs2    = instr[24:20];
     wire [6:0]  funct7 = instr[31:25];
 
-    // Immediates
     wire [31:0] imm_i = {{20{instr[31]}}, instr[31:20]};
     wire [31:0] imm_s = {{20{instr[31]}}, instr[31:25], instr[11:7]};
     wire [31:0] imm_b = {{19{instr[31]}}, instr[31], instr[7], instr[30:25], instr[11:8], 1'b0};
 
-    // Submodules
     instr_mem IMEM(.addr(pc), .instr(instr));
 
     wire [31:0] rs1_data, rs2_data, rd_data;
@@ -43,7 +39,7 @@ module cpu(
         .clk(clk),
         .mem_we_half(mem_we_half),
         .mem_re_half(mem_re_half),
-        .addr(alu_y),          // address comes from rs1 + imm_i (computed in ALU)
+        .addr(alu_y),       
         .rs2_data(rs2_data),
         .lh_signed(lh_signed)
     );
@@ -58,15 +54,12 @@ module cpu(
     reg        op_is_sll;
     reg        take_branch_bne;
 
-    // ALU op encoding (match alu.v)
     localparam ALU_ADD = 4'd0;
     localparam ALU_OR  = 4'd1;
     localparam ALU_AND = 4'd2;
     localparam ALU_SLL = 4'd3;
 
-    // Control logic
     always @* begin
-        // defaults
         alu_op = ALU_ADD;
         reg_we = 1'b0;
         alu_src_imm = 1'b0;
@@ -80,7 +73,7 @@ module cpu(
             `OPC_RTYPE: begin
                 reg_we = 1'b1;
                 case (funct3)
-                    `F3_ADD_SUB: begin // ADD
+                    `F3_ADD_SUB: begin 
                         if (funct7 == `F7_ADD_SRL_SLL) alu_op = ALU_ADD;
                     end
                     `F3_OR: begin
@@ -94,29 +87,27 @@ module cpu(
                 endcase
             end
 
-            `OPC_ITYPE: begin // ANDI
+            `OPC_ITYPE: begin 
                 reg_we = 1'b1;
                 alu_src_imm = 1'b1;
                 if (funct3 == `F3_ANDI) alu_op = ALU_AND;
             end
 
-            `OPC_LOAD: begin // LH
+            `OPC_LOAD: begin 
                 alu_src_imm = 1'b1;
                 mem_re_half = (funct3 == `F3_LH);
                 writeback_from_mem = 1'b1;
                 reg_we = 1'b1;
-                alu_op = ALU_ADD; // address = rs1 + imm
+                alu_op = ALU_ADD;
             end
 
-            `OPC_STORE: begin // SH
+            `OPC_STORE: begin 
                 alu_src_imm = 1'b1;
                 mem_we_half = (funct3 == `F3_SH);
-                alu_op = ALU_ADD; // address = rs1 + imm
                 reg_we = 1'b0;
             end
 
-            `OPC_BRANCH: begin // BNE
-                // Compare rs1 != rs2
+            `OPC_BRANCH: begin 
                 take_branch_bne = (funct3 == `F3_BNE) && (rs1_data != rs2_data);
                 reg_we = 1'b0;
             end
@@ -124,10 +115,8 @@ module cpu(
         endcase
     end
 
-    // Writeback mux
     assign rd_data = writeback_from_mem ? lh_signed : alu_y;
 
-    // PC update
     wire [31:0] pc_next_seq = pc + 32'd4;
     wire [31:0] pc_branch   = pc + imm_b;
 

@@ -5,7 +5,6 @@ module alu(
     output reg [31:0] y,
     output zero
 );
-    // op encoding
     localparam ALU_ADD = 4'd0;
     localparam ALU_OR  = 4'd1;
     localparam ALU_AND = 4'd2;
